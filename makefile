@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = -m32 -ffreestanding -fno-pic -fno-stack-protector -c
 ASM = nasm
+LD = ld
 
 # Include libc in the sources
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c)
@@ -19,7 +20,7 @@ os-image: boot/boot.bin kernel.bin
 	cat $^ > os-image
 
 kernel.bin: boot/kernel_entry.o cpu/interrupt.o ${OBJ}
-	ld -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
+	$(LD) -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
 
 # Compile assembly files
 cpu/interrupt.o: cpu/interrupt.asm

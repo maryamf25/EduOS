@@ -3,7 +3,6 @@
 
 #include "types.h"
 
-#define MAX_FILES 20       
 #define MAX_FILENAME 32    
 #define MAX_FILESIZE 1024
 
@@ -11,13 +10,13 @@
 #define FS_FILE 0
 #define FS_DIR  1
 
-typedef struct {
+typedef struct FileNode {
     char name[MAX_FILENAME];
     char data[MAX_FILESIZE];
     int size;
-    int used;
     int type; 
-} File;
+    struct FileNode* next;
+} FileNode;
 
 // --- EXPOSE CWD GLOBALLY ---
 extern char cwd[MAX_FILENAME]; 

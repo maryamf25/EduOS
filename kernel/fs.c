@@ -1,8 +1,9 @@
 #include "fs.h"
 #include "../libc/string.h"
 #include "../drivers/screen.h"
+#include "heap.h"
 
-File file_system[MAX_FILES];
+FileNode* fs_head = 0;
 char cwd[MAX_FILENAME] = "/"; // Global Current Working Directory
 
 // Helper: Resolve full path (e.g., "file.txt" -> "/home/file.txt")
@@ -20,34 +21,40 @@ void get_full_path(char* name, char* full_path) {
 }
 
 void init_fs() {
-    for (int i = 0; i < MAX_FILES; i++) file_system[i].used = 0;
+    fs_head = 0;
     fs_create("readme.txt");
     fs_write("readme.txt", "Welcome! Root directory.");
     kprint("[FS] File System Initialized.\n");
+}
+
+FileNode* fs_find(char* full_path) {
+    FileNode* cur = fs_head;
+    while (cur) {
+        if (strcmp(cur->name, full_path) == 0) return cur;
+        cur = cur->next;
+    }
+    return 0;
 }
 
 int fs_create_entry(char* name, int type) {
     char full_path[MAX_FILENAME];
     get_full_path(name, full_path);
 
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && strcmp(file_system[i].name, full_path) == 0) {
-            kprint("Error: Name already exists.\n");
-            return 0;
-        }
+    if (fs_find(full_path)) {
+        kprint("Error: Name already exists.\n");
+        return 0;
     }
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used == 0) {
-            file_system[i].used = 1;
-            strcpy(file_system[i].name, full_path);
-            file_system[i].size = 0;
-            file_system[i].type = type;
-            kprint(type == FS_DIR ? "Directory created.\n" : "File created.\n");
-            return 1;
-        }
-    }
-    kprint("Error: Disk full.\n");
-    return 0;
+
+    FileNode* node = (FileNode*)kmalloc(sizeof(FileNode));
+    if (!node) { kprint("Error: Out of memory.\n"); return 0; }
+    strcpy(node->name, full_path);
+    node->size = 0;
+    node->type = type;
+    node->data[0] = '\0';
+    node->next = fs_head;
+    fs_head = node;
+    kprint(type == FS_DIR ? "Directory created.\n" : "File created.\n");
+    return 1;
 }
 
 int fs_create(char* name) { return fs_create_entry(name, FS_FILE); }
@@ -87,13 +94,11 @@ int fs_cd(char* path) {
     get_full_path(path, full_path);
 
     // 3. Verify Directory Exists
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && file_system[i].type == FS_DIR && strcmp(file_system[i].name, full_path) == 0) {
-            strcpy(cwd, full_path);
-            // Ensure trailing slash for consistency
-            if (cwd[strlen(cwd)-1] != '/') strcat(cwd, "/");
-            return 1;
-        }
+    FileNode* d = fs_find(full_path);
+    if (d && d->type == FS_DIR) {
+        strcpy(cwd, full_path);
+        if (cwd[strlen(cwd)-1] != '/') strcat(cwd, "/");
+        return 1;
     }
     kprint("Error: Directory not found.\n");
     return 0;
@@ -107,28 +112,27 @@ void fs_pwd() {
 void fs_list() {
     kprint("Listing: "); kprint(cwd); kprint("\n");
     int found = 0;
-    
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used) {
-            if (starts_with(file_system[i].name, cwd)) {
-                char* relative = file_system[i].name + strlen(cwd);
-                if (strlen(relative) == 0) continue; 
-                
-                int is_grandchild = 0;
-                for (int j=0; relative[j]!=0; j++) {
-                    if (relative[j] == '/' && relative[j+1] != 0) is_grandchild = 1;
-                }
-                if (is_grandchild) continue;
+    FileNode* cur = fs_head;
+    while (cur) {
+        if (starts_with(cur->name, cwd)) {
+            char* relative = cur->name + strlen(cwd);
+            if (strlen(relative) == 0) { cur = cur->next; continue; }
 
-                if (file_system[i].type == FS_DIR) {
-                    kprint("[DIR] "); kprint(relative);
-                } else {
-                    kprint("      "); kprint(relative);
-                }
-                kprint("\n");
-                found = 1;
+            int is_grandchild = 0;
+            for (int j=0; relative[j]!=0; j++) {
+                if (relative[j] == '/' && relative[j+1] != 0) is_grandchild = 1;
             }
+            if (is_grandchild) { cur = cur->next; continue; }
+
+            if (cur->type == FS_DIR) {
+                kprint("[DIR] "); kprint(relative);
+            } else {
+                kprint("      "); kprint(relative);
+            }
+            kprint("\n");
+            found = 1;
         }
+        cur = cur->next;
     }
     if (!found) kprint("(Empty)\n");
 }
@@ -136,46 +140,36 @@ void fs_list() {
 int fs_write(char* name, char* data) {
     char full_path[MAX_FILENAME];
     get_full_path(name, full_path);
-
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && strcmp(file_system[i].name, full_path) == 0) {
-            if (file_system[i].type == FS_DIR) {
-                kprint("Error: Cannot write to directory.\n");
-                return 0;
-            }
-            strcpy(file_system[i].data, data);
-            file_system[i].size = strlen(data);
-            kprint("Written.\n");
-            return 1;
-        }
-    }
-    kprint("Error: File not found.\n");
-    return 0;
+    FileNode* f = fs_find(full_path);
+    if (!f) { kprint("Error: File not found.\n"); return 0; }
+    if (f->type == FS_DIR) { kprint("Error: Cannot write to directory.\n"); return 0; }
+    strcpy(f->data, data);
+    f->size = strlen(data);
+    kprint("Written.\n");
+    return 1;
 }
 
 void fs_read(char* name) {
     char full_path[MAX_FILENAME];
     get_full_path(name, full_path);
-
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && strcmp(file_system[i].name, full_path) == 0) {
-            if (file_system[i].type == FS_DIR) kprint("Error: Is a directory.\n");
-            else { kprint(file_system[i].data); kprint("\n"); }
-            return;
-        }
-    }
-    kprint("Error: Not found.\n");
+    FileNode* f = fs_find(full_path);
+    if (!f) { kprint("Error: Not found.\n"); return; }
+    if (f->type == FS_DIR) { kprint("Error: Is a directory.\n"); return; }
+    kprint(f->data); kprint("\n");
 }
 
 void fs_delete(char* name) {
     char full_path[MAX_FILENAME];
     get_full_path(name, full_path);
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && strcmp(file_system[i].name, full_path) == 0) {
-            file_system[i].used = 0;
+    FileNode* prev = 0; FileNode* cur = fs_head;
+    while (cur) {
+        if (strcmp(cur->name, full_path) == 0) {
+            if (prev) prev->next = cur->next; else fs_head = cur->next;
+            kfree(cur);
             kprint("Deleted.\n");
             return;
         }
+        prev = cur; cur = cur->next;
     }
     kprint("Error: Not found.\n");
 }
@@ -183,39 +177,28 @@ void fs_delete(char* name) {
 void fs_copy(char* src, char* dest) {
     char full_src[MAX_FILENAME]; get_full_path(src, full_src);
     char full_dest[MAX_FILENAME]; get_full_path(dest, full_dest);
+    FileNode* src_node = fs_find(full_src);
+    if (!src_node) { kprint("Error: Source not found.\n"); return; }
 
-    int src_idx = -1;
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && strcmp(file_system[i].name, full_src) == 0) {
-            src_idx = i; break;
-        }
-    }
-    if (src_idx == -1) { kprint("Error: Source not found.\n"); return; }
+    if (fs_find(full_dest)) { kprint("Error: Dest exists.\n"); return; }
 
-    int dest_idx = -1;
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (!file_system[i].used) { dest_idx = i; break; }
-    }
-    if (dest_idx == -1) { kprint("Error: Disk full.\n"); return; }
-
-    file_system[dest_idx].used = 1;
-    strcpy(file_system[dest_idx].name, full_dest);
-    file_system[dest_idx].type = file_system[src_idx].type;
-    file_system[dest_idx].size = file_system[src_idx].size;
-    strcpy(file_system[dest_idx].data, file_system[src_idx].data);
+    FileNode* dest_node = (FileNode*)kmalloc(sizeof(FileNode));
+    if (!dest_node) { kprint("Error: Out of memory.\n"); return; }
+    strcpy(dest_node->name, full_dest);
+    dest_node->type = src_node->type;
+    dest_node->size = src_node->size;
+    strcpy(dest_node->data, src_node->data);
+    dest_node->next = fs_head;
+    fs_head = dest_node;
     kprint("Copied.\n");
 }
 
 void fs_rename(char* src, char* dest) {
     char full_src[MAX_FILENAME]; get_full_path(src, full_src);
     char full_dest[MAX_FILENAME]; get_full_path(dest, full_dest);
-
-    for (int i = 0; i < MAX_FILES; i++) {
-        if (file_system[i].used && strcmp(file_system[i].name, full_src) == 0) {
-            strcpy(file_system[i].name, full_dest);
-            kprint("Renamed.\n");
-            return;
-        }
-    }
-    kprint("Error: Source not found.\n");
+    FileNode* f = fs_find(full_src);
+    if (!f) { kprint("Error: Source not found.\n"); return; }
+    if (fs_find(full_dest)) { kprint("Error: Dest exists.\n"); return; }
+    strcpy(f->name, full_dest);
+    kprint("Renamed.\n");
 }
