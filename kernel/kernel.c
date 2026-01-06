@@ -156,9 +156,25 @@ void user_input(char *input) {
         char buf[16]; int_to_ascii(pit_ticks(), buf); kprint(buf); kprint(" ms\n");
     }
     else if (strcasecmp_prefix(input, "sleep")) {
-        if (arg1[0]) { int ms = 0; // simple atoi
-            int i=0; while (arg1[i]) { ms = ms*10 + (arg1[i]-'0'); i++; }
+        if (arg1[0]) { 
+            int ms = 0; // simple atoi
+            int i=0; 
+            while (arg1[i]) { 
+                if (arg1[i] < '0' || arg1[i] > '9') {
+                    kprint("Error: Invalid number.\n");
+                    goto skip_sleep;
+                }
+                ms = ms*10 + (arg1[i]-'0'); 
+                i++; 
+            }
+            if (ms == 0) {
+                kprint("Error: Sleep time must be > 0.\n");
+                goto skip_sleep;
+            }
+            kprint("Sleeping...\n");
             pit_sleep(ms);
+            kprint("Awake!\n");
+            skip_sleep: ;
         } else { kprint("Usage: sleep [ms]\n"); }
     }
     else if (strcasecmp_prefix(input, "kill")) {

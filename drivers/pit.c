@@ -37,7 +37,20 @@ void isr_timer_handler(u32* regs_esp) {
 }
 
 void pit_sleep(u32 ms) {
+    if (ms == 0) return;
+    
     u32 start = ticks;
-    u32 target = start + ms; // frequency is 1000 Hz when init with 1000
-    while (ticks < target) { /* busy wait */ }
+    u32 elapsed = 0;
+    
+    // Avoid overflow issues by checking elapsed time instead of target
+    while (elapsed < ms) {
+        u32 current = ticks;
+        // Handle tick counter wrap-around
+        if (current >= start) {
+            elapsed = current - start;
+        } else {
+            // Overflow occurred
+            elapsed = (0xFFFFFFFF - start) + current + 1;
+        }
+    }
 }

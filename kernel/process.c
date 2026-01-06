@@ -51,6 +51,9 @@ void list_processes() {
     for (int i = 0; i < process_count; i++) {
         Process p = process_list[i];
         
+        // Skip terminated processes
+        if (p.state == TERMINATED) continue;
+        
         // Print PID
         int_to_ascii(p.pid, buffer);
         kprint(buffer);
@@ -59,7 +62,8 @@ void list_processes() {
         // Print State
         if (p.state == RUNNING) kprint("RUN");
         else if (p.state == READY) kprint("RDY");
-        else kprint("BLK");
+        else if (p.state == BLOCKED) kprint("BLK");
+        else kprint("???");
         
         kprint("   |  ");
         
@@ -81,6 +85,16 @@ void list_processes() {
 void terminate_process(int pid) {
     for (int i = 0; i < process_count; i++) {
         if (process_list[i].pid == pid) {
+            // Prevent killing critical system processes
+            if (i == 0) {
+                kprint("Error: Cannot kill KERNEL process.\n");
+                return;
+            }
+            if (i == 1) {
+                kprint("Error: Cannot kill SHELL process.\n");
+                return;
+            }
+            
             process_list[i].state = TERMINATED;
             kprint("Process terminated: "); kprint(process_list[i].name); kprint("\n");
             return;
