@@ -84,8 +84,15 @@ void user_input(char *input) {
     }
     // --- STANDARD COMMANDS ---
     else if (strcasecmp(input, "help") == 0) {
-        kprint("--- EduOS Help ---\n");
-        kprint("File Commands:\n");
+        kprint("=== EduOS Help Categories ===\n");
+        kprint("Type a category to see commands:\n");
+        kprint("  help files    - File system commands\n");
+        kprint("  help system   - System info & control\n");
+        kprint("  help process  - Process management\n");
+        kprint("  help apps     - Applications & games\n");
+    }
+    else if (strcasecmp(input, "help files") == 0) {
+        kprint("=== File System Commands ===\n");
         kprint("  ls            - List files in current dir\n");
         kprint("  pwd           - Print working directory\n");
         kprint("  cd [path]     - Change directory (or ..)\n");
@@ -96,19 +103,27 @@ void user_input(char *input) {
         kprint("  rm [name]     - Delete file\n");
         kprint("  cp [src] [dst]- Copy file\n");
         kprint("  mv [old] [new]- Rename/Move file\n");
-        kprint("\nSystem Commands:\n");
+    }
+    else if (strcasecmp(input, "help system") == 0) {
+        kprint("=== System Commands ===\n");
         kprint("  echo [text]   - Print text\n");
         kprint("  whoami        - Print user\n");
         kprint("  clear         - Clear screen\n");
         kprint("  reboot        - Restart system\n");
-        kprint("  monitor       - System Monitor (interactive)\n");
-        kprint("  start         - Start dummy process\n");
         kprint("  memmap        - Show memory layout\n");
         kprint("  uptime        - Show system uptime (ms)\n");
         kprint("  sleep [ms]    - Busy-wait sleep in milliseconds\n");
+    }
+    else if (strcasecmp(input, "help process") == 0) {
+        kprint("=== Process Management ===\n");
+        kprint("  start         - Start dummy process\n");
         kprint("  kill [pid]    - Terminate a process\n");
         kprint("  msg [pid] [c] - Send one-byte IPC to process\n");
         kprint("  inbox [pid]   - Receive one byte from inbox\n");
+        kprint("  monitor       - System Monitor (interactive)\n");
+    }
+    else if (strcasecmp(input, "help apps") == 0) {
+        kprint("=== Applications & Games ===\n");
         kprint("  edu           - Learn OS concepts (interactive)\n");
         kprint("  game          - Play a quick guessing game\n");
     }

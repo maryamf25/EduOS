@@ -10,7 +10,7 @@ OBJ = ${C_SOURCES:.c=.o}
 all: os-image
 
 run: os-image
-	qemu-system-i386 -fda os-image
+	qemu-system-i386 -drive format=raw,file=os-image,index=0,if=floppy
 
 # --- FIX: Added libc/*.o to the delete list ---
 clean:
@@ -20,7 +20,7 @@ os-image: boot/boot.bin kernel.bin
 	cat $^ > os-image
 
 kernel.bin: boot/kernel_entry.o cpu/interrupt.o ${OBJ}
-	$(LD) -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
+	$(LD) -m elf_i386 -o $@ -Ttext 0x1000 -e 0x1000 $^ --oformat binary
 
 # Compile assembly files
 cpu/interrupt.o: cpu/interrupt.asm
