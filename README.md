@@ -360,7 +360,6 @@ IRQ1 (Keyboard) → INT 33  (isr_keyboard)
 INT 0-31 reserved for CPU exceptions
 ```
 
-
 #### B. Timer Interrupt (PIT - Programmable Interval Timer)
 
 **File**: `drivers/pit.c`
