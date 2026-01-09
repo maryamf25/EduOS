@@ -89,7 +89,7 @@ void kprint_at(char *message, int col, int row) {
 
     int i = 0;
     while (message[i] != 0) {
-        offset = handle_scrolling(offset); // <--- Check for scroll!
+        offset = handle_scrolling(offset); 
         
         if (message[i] == '\n') {
             row = get_offset_row(offset);
